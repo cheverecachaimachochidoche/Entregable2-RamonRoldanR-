@@ -81,7 +81,7 @@ function finalizarCompra() {
         console.log("Procesando la compra...");
 
         Swal.fire({
-            title: 'Compra finalizada!',
+            title: 'Compra finalizada!!!',
             text: 'Tu compra ha sido completada con éxito.',
             icon: 'success',
             confirmButtonText: 'Aceptar'
