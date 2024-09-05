@@ -1,22 +1,52 @@
-const productos = [
-    { id: 1, nombre: 'Pez Betta', precio: 10.00 },
-    { id: 2, nombre: 'Pez Guppy', precio: 8.00 },
-    { id: 3, nombre: 'Pez Ángel', precio: 15.00 },
-    { id: 4, nombre: 'Pez Disco', precio: 25.00 },
-    { id: 5, nombre: 'Pez Cebra', precio: 6.00 },
-    { id: 6, nombre: 'Pez Neon', precio: 5.00 },
-    { id: 7, nombre: 'Pez Goldfish', precio: 4.00 },
-    { id: 8, nombre: 'Pez Molly', precio: 7.00 },
-    { id: 9, nombre: 'Pez Platy', precio: 6.00 }
-];
-
 document.addEventListener('DOMContentLoaded', () => {
-    cargarCarrito();
-});
+    fetch('../db/main.json') 
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            productos = data;
+            cargarCarrito(); 
+        })
+        .catch(error => console.error('Error al cargar los productos:', error));
 
-const botonesAgreg = document.querySelectorAll('.agregar-carrito');
-botonesAgreg.forEach(boton => {
-    boton.addEventListener('click', agregarCarrito);
+    document.addEventListener('click', function (e) {
+        if (e.target.classList.contains('agregar-carrito')) {
+            agregarCarrito(e);
+        }
+        if (e.target.id === 'finalizar-compra') {
+            finalizarCompra();
+        }
+    });
+
+    const botonVaciarCarrito = document.getElementById('vaciar-carrito');
+    if (botonVaciarCarrito) {
+        botonVaciarCarrito.addEventListener('click', () => {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "¡No podrás deshacer esta acción!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, vaciar carrito!',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    localStorage.removeItem('carrito');
+                    mostrarCarrito();
+
+                    Swal.fire(
+                        'Carrito vaciado!',
+                        'El carrito ha sido vaciado exitosamente.',
+                        'success'
+                    );
+                }
+            });
+        });
+    }
 });
 
 function agregarCarrito(e) {
@@ -34,22 +64,32 @@ function mostrarCarrito() {
     let total = 0;
     carritoItems.innerHTML = '';
 
-    carrito.forEach(producto => {
+    let productosAgrupados = carrito.reduce((acc, producto) => {
+        let id = producto.id;
+        if (!acc[id]) {
+            acc[id] = { ...producto, cantidad: 0 };
+        }
+        acc[id].cantidad += 1;
+        return acc;
+    }, {});
+
+    for (let id in productosAgrupados) {
+        let producto = productosAgrupados[id];
         const div = document.createElement('div');
         div.innerHTML = `
             <div>
                 <div>
                     <h5 class="card-title">${producto.nombre}</h5>
+                    <p>Cantidad: ${producto.cantidad}</p>
                     <p class="text-primary"><strong>$${producto.precio.toFixed(2)}</strong></p>
                 </div>
             </div>
         `;
-
         carritoItems.appendChild(div);
-        total += producto.precio;
-    });
+        total += producto.precio * producto.cantidad;
+    }
 
-    document.getElementById('total-price').textContent = total.toFixed(2);
+    document.getElementById('total-price').textContent = '$' + total.toFixed(2);
 }
 
 function obtenerCarrito() {
@@ -64,7 +104,33 @@ function cargarCarrito() {
     mostrarCarrito();
 }
 
-document.getElementById('vaciar-carrito').addEventListener('click', () => {
-    localStorage.removeItem('carrito');
-    mostrarCarrito();
-});
+function finalizarCompra() {
+    try {
+        let carrito = obtenerCarrito();
+
+        if (carrito.length === 0) {
+            throw new Error('El carrito está vacío, no se puede procesar la compra.');
+        }
+
+        console.log("Procesando la compra...");
+
+        Swal.fire({
+            title: 'Compra finalizada!',
+            text: 'Tu compra ha sido completada con éxito.',
+            icon: 'success',
+            confirmButtonText: 'Aceptar'
+        });
+
+    } catch (error) {
+        Swal.fire({
+            title: 'Error!',
+            text: `Hubo un problema al procesar la compra: ${error.message}`,
+            icon: 'error',
+            confirmButtonText: 'Aceptar'
+        });
+        console.error('Error al finalizar la compra:', error);
+    } finally {
+        localStorage.removeItem('carrito');
+        mostrarCarrito();
+    }
+}
